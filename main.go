@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/caarlos0/env"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 )
 
 type Config struct {
@@ -30,6 +30,7 @@ func connect(c *Config) (*ldap.Conn, error) {
 	if err := conn.Bind(c.User, c.Password); err != nil {
 		return nil, err
 	}
+	conn.Debug = true
 	return conn, nil
 }
 
