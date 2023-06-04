@@ -48,17 +48,18 @@ func search(conn *ldap.Conn, req *ldap.SearchRequest) error {
 }
 
 func search2(conn *ldap.Conn, req *ldap.SearchRequest) error {
-	i := 0
+	cancelNum := 200
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := conn.SearchWithChannel(ctx, req)
-	for r := range ch {
+	for i := 0; i < cancelNum; i++ {
+		r := <-ch
 		if r.Error != nil {
 			return r.Error
 		}
 		fmt.Printf("%d: %s, %v\n", i, r.Entry.DN, r.Entry.GetAttributeValue("cn"))
-		i++
-		if i == 20010 {
+		if i == cancelNum-1 {
 			cancel()
+			//close(ch)
 		}
 	}
 	return nil
