@@ -47,12 +47,15 @@ func search(conn *ldap.Conn, req *ldap.SearchRequest) error {
 	return nil
 }
 
-func search2(conn *ldap.Conn, req *ldap.SearchRequest) error {
+func searchWithChannel(conn *ldap.Conn, req *ldap.SearchRequest) error {
 	cancelNum := 200
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := conn.SearchWithChannel(ctx, req)
+	ch := conn.SearchWithChannel(ctx, req, 0)
 	for i := 0; i < cancelNum; i++ {
 		r := <-ch
+		if err := conn.GetLastError(); err != nil {
+			return err
+		}
 		if r.Error != nil {
 			return r.Error
 		}
@@ -61,6 +64,9 @@ func search2(conn *ldap.Conn, req *ldap.SearchRequest) error {
 			cancel()
 			//close(ch)
 		}
+	}
+	for range ch {
+		fmt.Println("consume all entries")
 	}
 	return nil
 }
@@ -92,7 +98,7 @@ func main() {
 		[]string{},
 		nil,
 	)
-	if err := search2(conn, req); err != nil {
+	if err := searchWithChannel(conn, req); err != nil {
 		log.Fatal(err)
 	}
 }
