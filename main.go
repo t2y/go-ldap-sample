@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/caarlos0/env"
 	"github.com/go-ldap/ldap/v3"
@@ -47,26 +48,23 @@ func search(conn *ldap.Conn, req *ldap.SearchRequest) error {
 	return nil
 }
 
-func searchWithChannel(conn *ldap.Conn, req *ldap.SearchRequest) error {
+func searchAsync(conn *ldap.Conn, req *ldap.SearchRequest) error {
+	i := 0
 	cancelNum := 200
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := conn.SearchWithChannel(ctx, req, 0)
-	for i := 0; i < cancelNum; i++ {
-		r := <-ch
-		if err := conn.GetLastError(); err != nil {
-			return err
-		}
-		if r.Error != nil {
-			return r.Error
-		}
-		fmt.Printf("%d: %s, %v\n", i, r.Entry.DN, r.Entry.GetAttributeValue("cn"))
-		if i == cancelNum-1 {
+	defer cancel()
+	r := conn.SearchAsync(ctx, req, 0)
+	for r.Next() {
+		entry := r.Entry()
+		fmt.Printf("%d: %s, %v\n", i, entry.DN, entry.GetAttributeValue("cn"))
+		i++
+		if i == cancelNum {
 			cancel()
-			//close(ch)
+			time.Sleep(1 * time.Second)
 		}
 	}
-	for range ch {
-		fmt.Println("consume all entries")
+	if err := r.Err(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -98,7 +96,8 @@ func main() {
 		[]string{},
 		nil,
 	)
-	if err := searchWithChannel(conn, req); err != nil {
+	if err := searchAsync(conn, req); err != nil {
 		log.Fatal(err)
 	}
+	log.Println("normal end")
 }
