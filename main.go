@@ -77,6 +77,14 @@ func searchAsync(conn *ldap.Conn, req *ldap.SearchRequest) error {
 		entry := r.Entry()
 		fmt.Printf("%d: %s, %v\n", i, entry.DN, entry.GetAttributeValue("cn"))
 		i++
+		referral := r.Referral()
+		if referral != "" {
+			fmt.Println("🐙", referral)
+		}
+		controlls := r.Controls()
+		if len(controlls) != 0 {
+			fmt.Println("🦑", controlls)
+		}
 	}
 	if err := r.Err(); err != nil {
 		return err
