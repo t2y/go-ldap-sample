@@ -92,6 +92,30 @@ func searchAsync(conn *ldap.Conn, req *ldap.SearchRequest) error {
 	return nil
 }
 
+func syncRepl(conn *ldap.Conn, req *ldap.SearchRequest) error {
+	i := 0
+	ctx := context.Background()
+	//mode := ldap.SyncRequestModeRefreshOnly
+	mode := ldap.SyncRequestModeRefreshAndPersist
+	cookie := []byte("rid=000,csn=20230719002941.016654Z#000000#000#000000")
+	r := conn.Syncrepl(ctx, req, 512, mode, cookie, false)
+	for r.Next() {
+		fmt.Printf("%d: retrieved a response\n", i)
+		entry := r.Entry()
+		if entry != nil {
+			fmt.Printf("- entry: %s, %v\n", entry.DN, entry.GetAttributeValue("cn"))
+		}
+		for _, c := range r.Controls() {
+			fmt.Printf("- control: %s\n", c.String())
+		}
+		i++
+	}
+	if err := r.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 const (
 	sizeLimit = 0
 	timeLimit = 0
@@ -116,10 +140,10 @@ func main() {
 		timeLimit,
 		false,
 		"(objectclass=*)",
-		[]string{},
+		[]string{"uid", "cn"},
 		nil,
 	)
-	if err := searchAsync(conn, req); err != nil {
+	if err := syncRepl(conn, req); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("normal end")
