@@ -103,8 +103,12 @@ func syncRepl(conn *ldap.Conn, req *ldap.SearchRequest) error {
 		fmt.Printf("%d: retrieved a response\n", i)
 		entry := r.Entry()
 		if entry != nil {
-			fmt.Printf("- entry: %s, %v\n", entry.DN, entry.GetAttributeValue("cn"))
+			fmt.Printf("- entry: %s\n", entry.DN)
+			for _, a := range entry.Attributes {
+				fmt.Printf("  - %s: %s\n", a.Name, a.Values)
+			}
 		}
+		fmt.Printf("- referral: %v\n", r.Referral())
 		for _, c := range r.Controls() {
 			fmt.Printf("- control: %s\n", c.String())
 		}
@@ -133,15 +137,15 @@ func main() {
 	defer conn.Close()
 
 	req := ldap.NewSearchRequest(
-		cfg.DN_SUFFIX,
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		sizeLimit,
-		timeLimit,
-		false,
-		"(objectclass=*)",
-		[]string{"uid", "cn"},
-		nil,
+		cfg.DN_SUFFIX,          // Base DN
+		ldap.ScopeWholeSubtree, // Scope
+		ldap.NeverDerefAliases, // Deref Aliases
+		sizeLimit,              // Size Limit
+		timeLimit,              // Time Limit
+		false,                  // Types Only
+		"(objectclass=*)",      // Filter
+		nil,                    // Attributes
+		nil,                    // Controls
 	)
 	if err := syncRepl(conn, req); err != nil {
 		log.Fatal(err)
